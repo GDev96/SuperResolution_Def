@@ -26,6 +26,9 @@ from models.discriminator import UNetDiscriminatorSN
 from dataset.astronomical_dataset import AstronomicalDataset
 from utils.gan_losses import CombinedGANLoss, DiscriminatorLoss
 
+### MODIFICA 1: Importare le metriche
+from utils.metrics import TrainMetrics 
+
 BATCH_SIZE = 1 
 LR_G = 1e-4
 LR_D = 1e-4
@@ -100,7 +103,8 @@ def train_worker():
         if not log_path.exists():
             with open(log_path, "w", newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow(["Epoch", "G_Total", "L1", "G_Adv", "D_Total", "LR"])
+                ### MODIFICA 2: Aggiunta colonne PSNR e SSIM all'header
+                writer.writerow(["Epoch", "G_Total", "L1", "G_Adv", "D_Total", "LR", "PSNR", "SSIM"])
 
     if args.resume is None:
         latest_ckpt = find_latest_checkpoint(ckpt_dir)
@@ -188,11 +192,19 @@ def train_worker():
 
     dist.barrier()
 
+    ### MODIFICA 3a: Inizializzare metrics_calc fuori dal loop o dentro per epoca
+    # Per pulizia lo facciamo dentro il loop epoch
+
     for epoch in range(start_epoch, NUM_EPOCHS + 1):
         train_sampler.set_epoch(epoch)
         net_g.train()
         net_d.train()
         
+        ### MODIFICA 3b: Inizializzare le metriche per l'epoca corrente
+        # Lo usiamo solo su rank 0 per loggare le statistiche di quel processo (come le loss)
+        if rank == 0:
+            metrics_calc = TrainMetrics()
+
         is_warmup = epoch <= WARMUP_EPOCHS
         desc = f"Ep {epoch} [WARMUP]" if is_warmup else f"Ep {epoch} [GAN]"
         current_lr = scheduler_g.get_last_lr()[0]
@@ -215,6 +227,12 @@ def train_worker():
             for p in net_d.parameters(): p.requires_grad = False
             
             sr = net_g(lr)
+
+            ### MODIFICA 3c: Aggiornare le metriche PSNR/SSIM
+            # Calcoliamo solo su rank 0 per non rallentare e perché logghiamo solo rank 0
+            if rank == 0:
+                with torch.no_grad():
+                    metrics_calc.update(sr, hr)
             
             l1_loss = criterion_pixel(sr, hr)
             l1_val = l1_loss.item()
@@ -277,6 +295,9 @@ def train_worker():
             avg_l1 = ep_l1 / steps if steps > 0 else 0
             avg_adv = ep_g_adv / steps if steps > 0 else 0
             avg_d = ep_d_total / steps if steps > 0 else 0
+            
+            ### MODIFICA 4: Calcolare i risultati finali e scriverli
+            epoch_metrics = metrics_calc.compute()
 
             with open(log_path, "a", newline='') as f:
                 writer = csv.writer(f)
@@ -286,7 +307,9 @@ def train_worker():
                     f"{avg_l1:.4f}", 
                     f"{avg_adv:.4f}", 
                     f"{avg_d:.4f}", 
-                    f"{current_lr:.2e}"
+                    f"{current_lr:.2e}",
+                    f"{epoch_metrics['psnr']:.4f}", # Nuovo
+                    f"{epoch_metrics['ssim']:.4f}"  # Nuovo
                 ])
 
             if epoch % SAVE_INTERVAL_CKPT == 0 or epoch == NUM_EPOCHS:
