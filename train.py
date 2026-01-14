@@ -39,7 +39,7 @@ LR_G = 1e-4
 LR_D = 1e-4             
 TOTAL_EPOCHS = 300 
 LOG_INTERVAL = 5   
-IMAGE_INTERVAL = 5       
+IMAGE_INTERVAL = 10       
 EMA_DECAY = 0.999        
 
 class ModelEMA:
