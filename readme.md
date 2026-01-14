@@ -15,3 +15,15 @@ LR: Il Learning Rate corrente del Generatore.
 PSNR (Nuovo): Il Peak Signal-to-Noise Ratio medio dell'epoca. Indica la qualità della ricostruzione dell'immagine (valori più alti sono migliori).
 
 SSIM (Nuovo): Lo Structural Similarity Index medio dell'epoca. Misura la similarità strutturale tra l'immagine generata e quella originale (valori più vicini a 1 sono migliori).
+
+
+
+
+============================================================
+ CONTEGGIO TOTALE PARAMETRI
+------------------------------------------------------------
+ Hybrid Generator (HAT):   42.54 M  (42,536,738)
+ Discriminator (UNet):      4.38 M  (4,375,745)
+------------------------------------------------------------
+ TOTALE COMPLESSIVO:       46.91 M  (46,912,483)
+============================================================
