@@ -27,12 +27,12 @@ class AstronomicalDataset(Dataset):
             if not path.exists():
                 return None
             
-            # Apertura e caricamento forzato per verificare l'integrità del file
+ 
             img = Image.open(path)
             img.load() 
             
             arr = np.array(img, dtype=np.float32)
-            arr = arr / 65535.0  # Normalizzazione 16-bit
+            arr = arr / 65535.0  
             tensor = torch.from_numpy(arr)
             
             if tensor.ndim == 2:
@@ -49,7 +49,7 @@ class AstronomicalDataset(Dataset):
         lr_tensor = self._load_tiff_as_tensor(path_lr)
         hr_tensor = self._load_tiff_as_tensor(path_hr)
 
-        # Se il file è corrotto (errore PIL) o mancante, pesca un nuovo indice
+      
         if lr_tensor is None or hr_tensor is None:
             new_idx = random.randint(0, len(self.pairs) - 1)
             return self.__getitem__(new_idx)
