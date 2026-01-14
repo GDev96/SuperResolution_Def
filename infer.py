@@ -10,7 +10,7 @@ from PIL import Image
 from tqdm import tqdm
 from typing import List
 
-# Configurazione Percorsi
+
 CURRENT_SCRIPT = Path(__file__).resolve()
 PROJECT_ROOT = CURRENT_SCRIPT.parent
 OUTPUT_ROOT = PROJECT_ROOT / "outputs"
@@ -19,7 +19,7 @@ ROOT_DATA_DIR = PROJECT_ROOT / "data"
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-# Import dai moduli del progetto
+
 try:
     from models.architecture import SwinIR
     from dataset.astronomical_dataset import AstronomicalDataset
@@ -63,7 +63,7 @@ def run_test(target_model_folder: str):
     print(f"Using device: {device}")
     print("Modalità: Inferenza standard con salvataggio comparativo PNG (Tris)")
 
-    # Percorsi cartelle risultati
+  
     BASE_RESULTS = OUTPUT_ROOT / target_model_folder / "test_results_standard"
     TIFF_DIR = BASE_RESULTS / "tiff_16bit"
     PNG_DIR = BASE_RESULTS / "comparison_png"
@@ -104,7 +104,7 @@ def run_test(target_model_folder: str):
 
     model.eval()
 
-    # Ricerca JSON di test
+
     folder_clean = target_model_folder.replace("_DDP_SwinIR", "")
     targets_names = folder_clean.split("_")
     all_test_data = []
@@ -134,22 +134,21 @@ def run_test(target_model_folder: str):
             lr = batch['lr'].to(device)
             hr = batch['hr'].to(device)
             
-            # 1. Inferenza
+      
             sr = model(lr)
             sr_clamped = torch.clamp(sr, 0, 1)
             
-            # 2. Creazione Comparativa "Tris" (LR Upscalato | SR | HR)
-            # Upsample LR con nearest per matchare le dimensioni di SR e HR
+           
             lr_up = F.interpolate(lr, size=sr_clamped.shape[2:], mode='nearest')
             
-            # Concatenazione orizzontale (dim=3)
+     
             comparison = torch.cat((lr_up, sr_clamped, hr), dim=3)
             
-            # 3. Salvataggi
+          
             save_as_tiff16(sr_clamped, TIFF_DIR / f"test_{i:04d}_sr.tiff")
             vutils.save_image(comparison, PNG_DIR / f"test_{i:04d}_tris.png")
             
-            # Aggiornamento metriche
+   
             metrics.update(sr_clamped, hr)
 
     avg_psnr = metrics.psnr / metrics.count if metrics.count > 0 else 0
@@ -159,9 +158,26 @@ def run_test(target_model_folder: str):
 
 if __name__ == "__main__":
     available = get_available_targets(OUTPUT_ROOT)
+    
     if available:
-        print("Cartelle trovate:", available)
-        sel = input("Scrivi nome cartella: ")
-        run_test(sel)
+        print("\nCartelle dei modelli trovate:")
+
+        for idx, name in enumerate(available):
+            print(f" [{idx}] {name}")
+        
+        try:
+        
+            choice_str = input("\nSeleziona il numero della cartella: ")
+            choice = int(choice_str)
+            
+       
+            if 0 <= choice < len(available):
+                target_folder = available[choice]
+                run_test(target_folder)
+            else:
+                print(f"Numero non valido. Devi scegliere tra 0 e {len(available)-1}.")
+                
+        except ValueError:
+            print("Errore: Devi inserire un numero intero.")
     else:
-        print("Nessun output trovato.")
+        print(f"Nessuna cartella trovata in {OUTPUT_ROOT}")
