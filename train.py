@@ -38,8 +38,8 @@ ACCUM_STEPS = 4
 LR_G = 1e-4             
 LR_D = 1e-4             
 TOTAL_EPOCHS = 300 
-LOG_INTERVAL = 5   
-IMAGE_INTERVAL = 10       
+LOG_INTERVAL = 1   
+IMAGE_INTERVAL = 1       
 EMA_DECAY = 0.999        
 
 class ModelEMA:
@@ -107,8 +107,8 @@ def train_worker():
     log_dir = out_dir / "tensorboard"
     splits_dir_temp = out_dir / "temp_splits"
 
-    # Percorso per il file CSV delle metriche
-    csv_metrics_path = log_dir / "metrics.csv" # Percorso file CSV
+
+    csv_metrics_path = log_dir / "metrics.csv" 
 
     latest_ckpt_path = save_dir / "latest_checkpoint.pth"
     best_weights_path = save_dir / "best_gan_model.pth"
@@ -186,7 +186,7 @@ def train_worker():
         except Exception as e:
             if is_master: print(f"Errore resume: {e}")
 
-    # Inizializzazione CSV se è l'inizio del training e siamo sul master
+    
     if is_master and start_epoch == 1:
         with open(csv_metrics_path, mode='w', newline='') as f:
             writer_csv = csv.writer(f)
@@ -304,7 +304,7 @@ def train_worker():
                 print(f" Ep {epoch:04d} | G: {avg_g:.4f} | D: {avg_d:.4f} | PSNR: {g_psnr:.2f} | Time: {elapsed_time:.0f}s")
                 writer.add_scalar('Metrics/PSNR', g_psnr, epoch)
 
-                # Scrittura delle metriche su CSV (append mode)
+   
                 with open(csv_metrics_path, mode='a', newline='') as f:
                     writer_csv = csv.writer(f)
                     writer_csv.writerow([epoch, f"{avg_g:.6f}", f"{avg_d:.6f}", f"{g_psnr:.4f}", f"{g_ssim:.4f}", f"{elapsed_time:.2f}"])
