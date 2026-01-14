@@ -27,26 +27,21 @@ from dataset.astronomical_dataset import AstronomicalDataset
 from utils.gan_losses import CombinedGANLoss, DiscriminatorLoss
 from utils.metrics import TrainMetrics 
 
-# =================================================================================
-# ⚙️ CONFIGURAZIONE IPERPARAMETRI & MODELLO (DEFINITI UNA SOLA VOLTA)
-# =================================================================================
 
-# Configurazione del modello HybridHATRealESRGAN
-# Modifica qui per cambiare l'architettura di entrambi i modelli (G e G_EMA)
 MODEL_CONFIG = {
     "img_size": 128,
     "in_chans": 1,
-    "embed_dim": 180,               # Dimensione embedding (es. 180 o 90)
-    "depths": (6, 6, 6, 6, 6, 6),   # Profondità per ogni stadio
-    "num_heads": (6, 6, 6, 6, 6, 6),# Numero di teste per ogni stadio
-    "window_size": 8,               # Window size (deve dividere img_size, es. 128/8=16 OK)
+    "embed_dim": 180,              
+    "depths": (6, 6, 6, 6, 6, 6),  
+    "num_heads": (6, 6, 6, 6, 6, 6),
+    "window_size": 8,               
     "upscale": 4,
-    "num_rrdb": 23,                 # Numero di blocchi RRDB nel trunk
+    "num_rrdb": 23,                
     "num_feat": 64,
     "num_grow_ch": 32
 }
 
-# Parametri di Training
+
 BATCH_SIZE = 1 
 LR_G = 1e-4
 LR_D = 1e-4
@@ -56,7 +51,7 @@ SAVE_INTERVAL_CKPT = 3
 SAVE_INTERVAL_IMG = 10   
 GRADIENT_ACCUMULATION = 16
 
-# =================================================================================
+
 
 def tensor_to_img(tensor):
     img = tensor.cpu().detach().squeeze().float().numpy()
@@ -147,17 +142,13 @@ def train_worker():
     train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, sampler=train_sampler,
                               num_workers=4, pin_memory=True, persistent_workers=True, drop_last=True)
 
-    # =========================================================================
-    # INIZIALIZZAZIONE MODELLI (Usando MODEL_CONFIG)
-    # =========================================================================
-    
-    # Modello Generatore (Training)
+ 
     net_g = HybridHATRealESRGAN(**MODEL_CONFIG).to(device)
 
-    # Discriminatore
+ 
     net_d = UNetDiscriminatorSN(num_in_ch=1, num_feat=64).to(device)
 
-    # Modello EMA (Exponential Moving Average)
+  
     net_g_ema = HybridHATRealESRGAN(**MODEL_CONFIG).to(device)
     
     for p in net_g_ema.parameters():
@@ -329,7 +320,7 @@ def train_worker():
                     'epoch': epoch,
                     'model_state_dict': net_g.module.state_dict(),
                     'optimizer_state_dict': opt_g.state_dict(),
-                    'config': MODEL_CONFIG # Salviamo anche la config usata!
+                    'config': MODEL_CONFIG 
                 }
                 torch.save(checkpoint, ckpt_dir / f"hybrid_epoch_{epoch:03d}.pth")
                 torch.save(net_g.module.state_dict(), ckpt_dir / "best_hybrid_model.pth")
