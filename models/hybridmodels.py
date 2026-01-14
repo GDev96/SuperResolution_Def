@@ -14,13 +14,13 @@ HAT_ARCH_PATH = CURRENT_DIR / "hat_arch"
 
 if HAT_ARCH_PATH.exists():
     sys.path.insert(0, str(HAT_ARCH_PATH))
-    print(f"✓ Path HAT aggiunto: {HAT_ARCH_PATH}")
+    # print(f"✓ Path HAT aggiunto: {HAT_ARCH_PATH}")
 else:
     raise FileNotFoundError(f"Cartella HAT non trovata: {HAT_ARCH_PATH}")
 
 try:
     from hat_arch import HAT
-    print("✓ HAT importato correttamente")
+    # print("✓ HAT importato correttamente")
 except ImportError as e:
     raise ImportError(f"Impossibile importare HAT: {e}")
 
@@ -68,14 +68,14 @@ class RRDBBlock(nn.Module):
 class HybridHATRealESRGAN(nn.Module):
     def __init__(
         self,
-        img_size=128,
+        img_size,
+        depths,
+        num_heads,
+        window_size,
+        num_rrdb,
         in_chans=1,
         embed_dim=180,
-        depths=(6, 6, 6, 6, 6, 6),
-        num_heads=(6, 6, 6, 6, 6, 6),
-        window_size=8,
         upscale=4,
-        num_rrdb=23,
         num_feat=64,
         num_grow_ch=32
     ):
@@ -91,7 +91,7 @@ class HybridHATRealESRGAN(nn.Module):
             depths=depths,
             num_heads=num_heads,
             window_size=window_size,
-            upscale=2,
+            upscale=2, 
             upsampler='pixelshuffle',
             img_range=1.0,
             resi_connection='1conv'
@@ -148,33 +148,3 @@ class HybridHATRealESRGAN(nn.Module):
             print(f"✓ HAT pre-trained caricato da {hat_path}")
         except Exception as e:
             print(f"⚠️  Errore caricamento HAT pre-trained: {e}")
-
-
-if __name__ == "__main__":
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    
-    print("=" * 70)
-    print("TEST MODELLO IBRIDO HAT + REAL-ESRGAN")
-    print("=" * 70)
-    
-    model = HybridHATRealESRGAN(
-        img_size=128,
-        in_chans=1,
-        embed_dim=180,
-        depths=(6, 6, 6, 6, 6, 6),
-        num_heads=(6, 6, 6, 6, 6, 6),
-        window_size=8,
-        upscale=4,
-        num_rrdb=23
-    ).to(device)
-    
-    print("\n📊 Testing forward pass...")
-    x = torch.randn(1, 1, 128, 128).to(device)
-    with torch.no_grad():
-        y = model(x)
-    
-    print(f"\n✓ Test superato!")
-    print(f"  • Input:  {x.shape}")
-    print(f"  • Output: {y.shape}")
-    print(f"  • Params: {sum(p.numel() for p in model.parameters()):,}")
-    print("=" * 70)

@@ -25,9 +25,28 @@ from models.hybridmodels import HybridHATRealESRGAN
 from models.discriminator import UNetDiscriminatorSN
 from dataset.astronomical_dataset import AstronomicalDataset
 from utils.gan_losses import CombinedGANLoss, DiscriminatorLoss
-
 from utils.metrics import TrainMetrics 
 
+# =================================================================================
+# ⚙️ CONFIGURAZIONE IPERPARAMETRI & MODELLO (DEFINITI UNA SOLA VOLTA)
+# =================================================================================
+
+# Configurazione del modello HybridHATRealESRGAN
+# Modifica qui per cambiare l'architettura di entrambi i modelli (G e G_EMA)
+MODEL_CONFIG = {
+    "img_size": 128,
+    "in_chans": 1,
+    "embed_dim": 180,               # Dimensione embedding (es. 180 o 90)
+    "depths": (6, 6, 6, 6, 6, 6),   # Profondità per ogni stadio
+    "num_heads": (6, 6, 6, 6, 6, 6),# Numero di teste per ogni stadio
+    "window_size": 8,               # Window size (deve dividere img_size, es. 128/8=16 OK)
+    "upscale": 4,
+    "num_rrdb": 23,                 # Numero di blocchi RRDB nel trunk
+    "num_feat": 64,
+    "num_grow_ch": 32
+}
+
+# Parametri di Training
 BATCH_SIZE = 1 
 LR_G = 1e-4
 LR_D = 1e-4
@@ -36,6 +55,8 @@ WARMUP_EPOCHS = 30
 SAVE_INTERVAL_CKPT = 3   
 SAVE_INTERVAL_IMG = 10   
 GRADIENT_ACCUMULATION = 16
+
+# =================================================================================
 
 def tensor_to_img(tensor):
     img = tensor.cpu().detach().squeeze().float().numpy()
@@ -102,7 +123,6 @@ def train_worker():
         if not log_path.exists():
             with open(log_path, "w", newline='') as f:
                 writer = csv.writer(f)
-               
                 writer.writerow(["Epoch", "G_Total", "L1", "G_Adv", "D_Total", "LR", "PSNR", "SSIM"])
 
     if args.resume is None:
@@ -127,19 +147,19 @@ def train_worker():
     train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, sampler=train_sampler,
                               num_workers=4, pin_memory=True, persistent_workers=True, drop_last=True)
 
-    net_g = HybridHATRealESRGAN(
-        img_size=128, in_chans=1, embed_dim=90, depths=(6, 6, 6, 6),
-        num_heads=(6, 6, 6, 6), window_size=8, upscale=4,
-        num_rrdb=12, num_feat=48, num_grow_ch=24
-    ).to(device)
+    # =========================================================================
+    # INIZIALIZZAZIONE MODELLI (Usando MODEL_CONFIG)
+    # =========================================================================
+    
+    # Modello Generatore (Training)
+    net_g = HybridHATRealESRGAN(**MODEL_CONFIG).to(device)
 
+    # Discriminatore
     net_d = UNetDiscriminatorSN(num_in_ch=1, num_feat=64).to(device)
 
-    net_g_ema = HybridHATRealESRGAN(
-        img_size=128, in_chans=1, embed_dim=90, depths=(6, 6, 6, 6),
-        num_heads=(6, 6, 6, 6), window_size=8, upscale=4,
-        num_rrdb=12, num_feat=48, num_grow_ch=24
-    ).to(device)
+    # Modello EMA (Exponential Moving Average)
+    net_g_ema = HybridHATRealESRGAN(**MODEL_CONFIG).to(device)
+    
     for p in net_g_ema.parameters():
         p.requires_grad = False
 
@@ -186,19 +206,17 @@ def train_worker():
         print(f"   • Start Epoch: {start_epoch}")
         print(f"   • LR G Attuale: {scheduler_g.get_last_lr()[0]:.2e}")
         print(f"   • Accumulation: {GRADIENT_ACCUMULATION}")
+        print(f"   • Window Size: {MODEL_CONFIG['window_size']}")
         print(f"   • Log File: {log_path}")
         print("=" * 70)
 
     dist.barrier()
-
-   
 
     for epoch in range(start_epoch, NUM_EPOCHS + 1):
         train_sampler.set_epoch(epoch)
         net_g.train()
         net_d.train()
         
-
         if rank == 0:
             metrics_calc = TrainMetrics()
 
@@ -225,7 +243,6 @@ def train_worker():
             
             sr = net_g(lr)
 
-       
             if rank == 0:
                 with torch.no_grad():
                     metrics_calc.update(sr, hr)
@@ -312,6 +329,7 @@ def train_worker():
                     'epoch': epoch,
                     'model_state_dict': net_g.module.state_dict(),
                     'optimizer_state_dict': opt_g.state_dict(),
+                    'config': MODEL_CONFIG # Salviamo anche la config usata!
                 }
                 torch.save(checkpoint, ckpt_dir / f"hybrid_epoch_{epoch:03d}.pth")
                 torch.save(net_g.module.state_dict(), ckpt_dir / "best_hybrid_model.pth")
