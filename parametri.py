@@ -2,7 +2,7 @@ import sys
 import torch
 import torchvision.transforms.functional as TF_functional
 
-
+# Fix per torchvision
 sys.modules['torchvision.transforms.functional_tensor'] = TF_functional
 
 try:
@@ -12,7 +12,7 @@ except ImportError as e:
     print(f"❌ Errore di importazione: {e}")
     sys.exit(1)
 
-
+# --- CONFIGURAZIONE ---
 MODEL_CONFIG = {
     "img_size": 128,
     "in_chans": 1,
@@ -25,7 +25,7 @@ MODEL_CONFIG = {
     "num_feat": 64,
     "num_grow_ch": 32
 }
-
+# ----------------------
 
 def get_total_params(model):
     return sum(p.numel() for p in model.parameters())

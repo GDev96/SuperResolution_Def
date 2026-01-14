@@ -14,13 +14,13 @@ HAT_ARCH_PATH = CURRENT_DIR / "hat_arch"
 
 if HAT_ARCH_PATH.exists():
     sys.path.insert(0, str(HAT_ARCH_PATH))
-    # print(f"✓ Path HAT aggiunto: {HAT_ARCH_PATH}")
+ 
 else:
     raise FileNotFoundError(f"Cartella HAT non trovata: {HAT_ARCH_PATH}")
 
 try:
     from hat_arch import HAT
-    # print("✓ HAT importato correttamente")
+
 except ImportError as e:
     raise ImportError(f"Impossibile importare HAT: {e}")
 
