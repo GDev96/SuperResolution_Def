@@ -33,11 +33,11 @@ class RelativeGANLoss(nn.Module):
     
     def forward(self, real_pred, fake_pred, for_discriminator=True):
         if for_discriminator:
-            # D Loss
+       
             return (self.loss(real_pred - torch.mean(fake_pred), torch.ones_like(real_pred)) +
                     self.loss(fake_pred - torch.mean(real_pred), torch.zeros_like(fake_pred))) / 2
         else:
-            # G Loss
+        
             return (self.loss(fake_pred - torch.mean(real_pred), torch.ones_like(fake_pred)) +
                     self.loss(real_pred - torch.mean(fake_pred), torch.zeros_like(real_pred))) / 2
 
@@ -47,7 +47,7 @@ class TextureLoss(nn.Module):
     """
     def __init__(self):
         super().__init__()
-        # VGG per estrarre feature (layer intermedio per texture)
+    
         self.vgg = models.vgg19(pretrained=True).features[:35]
         for p in self.vgg.parameters(): p.requires_grad = False
         self.register_buffer('mean', torch.Tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
@@ -60,11 +60,11 @@ class TextureLoss(nn.Module):
         return gram / (c * h * w)
     
     def forward(self, pred, target):
-        # Gestione Grayscale -> RGB
+ 
         if pred.shape[1] == 1: pred = pred.repeat(1, 3, 1, 1)
         if target.shape[1] == 1: target = target.repeat(1, 3, 1, 1)
 
-        # Norm
+       
         pred = (pred - self.mean) / self.std
         target = (target - self.mean) / self.std
 
@@ -74,9 +74,7 @@ class TextureLoss(nn.Module):
         return F.mse_loss(self._gram_matrix(f_pred), self._gram_matrix(f_target.detach()))
 
 class CombinedGANLoss(nn.Module):
-    """
-    Loss SwinIR-GAN ottimizzata.
-    """
+ 
     def __init__(self, gan_type='ragan', pixel_weight=1.0, perceptual_weight=1.0, 
                  adversarial_weight=0.005, texture_weight=0, hf_weight=0):
         super().__init__()
@@ -87,7 +85,7 @@ class CombinedGANLoss(nn.Module):
         else:
             self.gan_loss = GANLoss(gan_type=gan_type)
             
-        # Per SwinIR si preferisce L1 o Charbonnier rispetto a MSE
+     
         self.pixel_loss = nn.L1Loss() 
         self.perceptual_loss = VGGLoss()
         self.texture_loss = TextureLoss() if texture_weight > 0 else None
@@ -115,7 +113,7 @@ class CombinedGANLoss(nn.Module):
         losses['total'] = sum(losses.values())
         return losses['total'], losses
 
-# Import necessario per TextureLoss nel file
+
 import torchvision.models as models
 
 class DiscriminatorLoss(nn.Module):
