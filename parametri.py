@@ -9,8 +9,7 @@ def count_parameters(model):
 def main():
     print("Calcolo dei parametri dei modelli...\n")
 
-    # 1. Configurazione del Generatore (SwinIR)
-    # Parametri presi dal tuo file train.py per rispecchiare il training attuale
+
     net_g = SwinIR(
         upscale=4,
         in_chans=1,
@@ -25,18 +24,16 @@ def main():
         resi_connection='1conv'
     )
 
-    # 2. Configurazione del Discriminatore
-    # Parametri presi dal tuo file train.py
     net_d = UNetDiscriminatorSN(
         num_in_ch=1, 
         num_feat=64
     )
 
-    # 3. Calcolo
+
     g_params = count_parameters(net_g)
     d_params = count_parameters(net_d)
 
-    # 4. Stampa Risultati
+
     print("-" * 40)
     print(f"GENERATORE (SwinIR)")
     print(f"Parametri totali: {g_params:,}")
