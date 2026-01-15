@@ -14,6 +14,7 @@ from tqdm import tqdm
 from PIL import Image
 import warnings
 
+# Filtro warning
 warnings.filterwarnings("ignore", category=UserWarning, module="torchvision.models._utils")
 warnings.filterwarnings("ignore", message="Grad strides do not match bucket view strides")
 warnings.filterwarnings("ignore", message="torch.meshgrid: in an upcoming release")
@@ -21,26 +22,14 @@ warnings.filterwarnings("ignore", message="torch.meshgrid: in an upcoming releas
 import torchvision.transforms.functional as TF_functional
 sys.modules['torchvision.transforms.functional_tensor'] = TF_functional
 
+# Import Moduli Progetto
 from models.hybridmodels import HybridHATRealESRGAN
 from models.discriminator import UNetDiscriminatorSN
 from dataset.astronomical_dataset import AstronomicalDataset
 from utils.gan_losses import CombinedGANLoss, DiscriminatorLoss
+from utils.metrics import TrainMetrics  # <--- NUOVO IMPORT
 
-
-HAT_CONFIG = {
-    "img_size": 128,
-    "in_chans": 1,
-    "embed_dim": 90,
-    "depths": (6, 6, 6, 6, 6, 6),
-    "num_heads": (6, 6, 6, 6, 6, 6),
-    "window_size": 8,
-    "upscale": 4,
-    "num_rrdb": 12,
-    "num_feat": 48,
-    "num_grow_ch": 24
-}
-
-
+# --- CONFIGURAZIONE ---
 BATCH_SIZE = 1 
 LR_G = 1e-4
 LR_D = 1e-4
@@ -112,10 +101,12 @@ def train_worker():
         ckpt_dir.mkdir(parents=True, exist_ok=True)
         preview_dir.mkdir(parents=True, exist_ok=True)
         
+        # --- MODIFICA HEADER CSV ---
         if not log_path.exists():
             with open(log_path, "w", newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow(["Epoch", "G_Total", "L1", "G_Adv", "D_Total", "LR"])
+                # Aggiunte colonne PSNR e SSIM
+                writer.writerow(["Epoch", "G_Total", "L1", "G_Adv", "D_Total", "PSNR", "SSIM", "LR"])
 
     if args.resume is None:
         latest_ckpt = find_latest_checkpoint(ckpt_dir)
@@ -129,7 +120,7 @@ def train_worker():
             if json_path.exists():
                 with open(json_path, 'r') as f: all_pairs.extend(json.load(f))
         
-        if not all_pairs: sys.exit(" Errore: Nessun dato trovato!")
+        if not all_pairs: sys.exit("❌ Errore: Nessun dato trovato!")
         with open("temp_train_combined.json", 'w') as f: json.dump(all_pairs, f)
 
     dist.barrier()
@@ -139,14 +130,19 @@ def train_worker():
     train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, sampler=train_sampler,
                               num_workers=4, pin_memory=True, persistent_workers=True, drop_last=True)
 
-    
-    net_g = HybridHATRealESRGAN(**HAT_CONFIG).to(device)
-
+    net_g = HybridHATRealESRGAN(
+        img_size=128, in_chans=1, embed_dim=90, depths=(6, 6, 6, 6),
+        num_heads=(6, 6, 6, 6), window_size=8, upscale=4,
+        num_rrdb=12, num_feat=48, num_grow_ch=24
+    ).to(device)
 
     net_d = UNetDiscriminatorSN(num_in_ch=1, num_feat=64).to(device)
 
-    net_g_ema = HybridHATRealESRGAN(**HAT_CONFIG).to(device)
-    
+    net_g_ema = HybridHATRealESRGAN(
+        img_size=128, in_chans=1, embed_dim=90, depths=(6, 6, 6, 6),
+        num_heads=(6, 6, 6, 6), window_size=8, upscale=4,
+        num_rrdb=12, num_feat=48, num_grow_ch=24
+    ).to(device)
     for p in net_g_ema.parameters():
         p.requires_grad = False
 
@@ -173,9 +169,9 @@ def train_worker():
             
             net_g_ema.load_state_dict(net_g.module.state_dict())
             start_epoch = checkpoint['epoch'] + 1
-            if rank == 0: print(f" Resume da epoca {start_epoch}")
+            if rank == 0: print(f"✅ Resume da epoca {start_epoch}")
         except Exception as e:
-            if rank == 0: print(f" Errore resume: {e}")
+            if rank == 0: print(f"❌ Errore resume: {e}")
     else:
         net_g_ema.load_state_dict(net_g.module.state_dict())
 
@@ -189,7 +185,7 @@ def train_worker():
     if rank == 0:
         os.system('cls' if os.name == 'nt' else 'clear')
         print("=" * 70)
-        print(f" TRAINING HYBRID (Scheduler Attivo & EMA & Logger)")
+        print(f"🚀 TRAINING HYBRID (Scheduler Attivo & EMA & Logger con PSNR)")
         print(f"   • Start Epoch: {start_epoch}")
         print(f"   • LR G Attuale: {scheduler_g.get_last_lr()[0]:.2e}")
         print(f"   • Accumulation: {GRADIENT_ACCUMULATION}")
@@ -203,12 +199,15 @@ def train_worker():
         net_g.train()
         net_d.train()
         
+        # --- INIZIALIZZA METRICHE ---
+        metrics = TrainMetrics()
+        
         is_warmup = epoch <= WARMUP_EPOCHS
         desc = f"Ep {epoch} [WARMUP]" if is_warmup else f"Ep {epoch} [GAN]"
         current_lr = scheduler_g.get_last_lr()[0]
 
         if rank == 0:
-            loader_bar = tqdm(train_loader, desc=desc, unit="bt", ncols=100)
+            loader_bar = tqdm(train_loader, desc=desc, unit="bt", ncols=110)
         else:
             loader_bar = train_loader
         
@@ -226,6 +225,10 @@ def train_worker():
             
             sr = net_g(lr)
             
+            # --- CALCOLO METRICHE (sul rank corrente) ---
+            # Usiamo detach() per non sporcare il grafo computazionale
+            metrics.update(sr.detach(), hr.detach())
+
             l1_loss = criterion_pixel(sr, hr)
             l1_val = l1_loss.item()
             
@@ -271,12 +274,16 @@ def train_worker():
             ep_d_total += loss_d_val
 
             if rank == 0:
+                # Calcolo PSNR temporaneo per la progress bar (facoltativo, ma utile)
+                # Nota: TrainMetrics accumula, quindi metrics.psnr / metrics.count dà la media attuale
+                curr_psnr = metrics.psnr / metrics.count if metrics.count > 0 else 0.0
+                
                 loader_bar.set_postfix({
                     'LG': f"{loss_g.item():.3f}", 
                     'L1': f"{l1_val:.3f}", 
                     'Adv': f"{g_adv_val:.3f}",
                     'LD': f"{loss_d_val:.3f}", 
-                    'LR': f"{current_lr:.1e}"
+                    'PSNR': f"{curr_psnr:.2f}"
                 })
 
         scheduler_g.step()
@@ -287,6 +294,11 @@ def train_worker():
             avg_l1 = ep_l1 / steps if steps > 0 else 0
             avg_adv = ep_g_adv / steps if steps > 0 else 0
             avg_d = ep_d_total / steps if steps > 0 else 0
+            
+            # --- RECUPERO METRICHE FINALI EPOCA ---
+            epoch_results = metrics.compute()
+            avg_psnr = epoch_results['psnr']
+            avg_ssim = epoch_results['ssim']
 
             with open(log_path, "a", newline='') as f:
                 writer = csv.writer(f)
@@ -295,7 +307,9 @@ def train_worker():
                     f"{avg_g:.4f}", 
                     f"{avg_l1:.4f}", 
                     f"{avg_adv:.4f}", 
-                    f"{avg_d:.4f}", 
+                    f"{avg_d:.4f}",
+                    f"{avg_psnr:.4f}",   # PSNR
+                    f"{avg_ssim:.4f}",   # SSIM
                     f"{current_lr:.2e}"
                 ])
 
@@ -308,13 +322,13 @@ def train_worker():
                 torch.save(checkpoint, ckpt_dir / f"hybrid_epoch_{epoch:03d}.pth")
                 torch.save(net_g.module.state_dict(), ckpt_dir / "best_hybrid_model.pth")
                 torch.save(net_g_ema.state_dict(), ckpt_dir / "best_hybrid_model_EMA.pth")
-                tqdm.write(f" Checkpoint e EMA salvati.")
+                tqdm.write(f"💾 Checkpoint e EMA salvati (PSNR: {avg_psnr:.2f} dB)")
 
             if epoch % SAVE_INTERVAL_IMG == 0:
                 save_validation_preview(lr, sr, hr, epoch, preview_dir)
 
     if rank == 0: 
-        print("\n TRAINING COMPLETATO!")
+        print("\n✅ TRAINING COMPLETATO!")
         if os.path.exists("temp_train_combined.json"): os.remove("temp_train_combined.json")
     
     dist.destroy_process_group()
