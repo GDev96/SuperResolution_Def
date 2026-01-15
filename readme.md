@@ -1,11 +1,1 @@
-NOVITA SCHEDULER
-log con tutti le metriche 
-
-
-
-
-OGGETTI CHIAVE
-
-WARMUP CON LOSS L1 
-GAN 30 
-SCHEDULER DA EPOCA 80 
+repo da pulire i commenti 
