@@ -1,61 +1,79 @@
 import sys
+import os
 import torch
+import torch.nn as nn
 import torchvision.transforms.functional as TF_functional
+from pathlib import Path
 
 # Fix per torchvision
 sys.modules['torchvision.transforms.functional_tensor'] = TF_functional
+
+# Setup percorsi
+CURRENT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(CURRENT_DIR))
 
 try:
     from models.hybridmodels import HybridHATRealESRGAN
     from models.discriminator import UNetDiscriminatorSN
 except ImportError as e:
-    print(f"❌ Errore di importazione: {e}")
-    sys.exit(1)
+    sys.exit(f"❌ Errore Import: {e}")
 
 # --- CONFIGURAZIONE ---
 MODEL_CONFIG = {
     "img_size": 128,
     "in_chans": 1,
-    "embed_dim": 180,              
-    "depths": (6, 6, 6, 6, 6, 6),  
+    "embed_dim": 180,
+    "depths": (6, 6, 6, 6, 6, 6),
     "num_heads": (6, 6, 6, 6, 6, 6),
-    "window_size": 8,               
+    "window_size": 8,
     "upscale": 4,
-    "num_rrdb": 23,                
+    "num_rrdb": 23,
     "num_feat": 64,
     "num_grow_ch": 32
 }
-# ----------------------
 
-def get_total_params(model):
-    return sum(p.numel() for p in model.parameters())
+def print_row(name, params):
+    mb_size = (params * 4) / (1024 * 1024)
+    print(f" │ {name:<25} │ {params:>12,} │ {mb_size:>9.2f} MB │")
 
 def main():
-    print("Calcolo parametri in corso...\n")
-    
+    os.system('cls' if os.name == 'nt' else 'clear')
+    print("\n🔨 Calcolo parametri in corso...\n")
+
     try:
-        # 1. Inizializzazione modelli
+        # 1. Istanziazione
         net_g = HybridHATRealESRGAN(**MODEL_CONFIG)
         net_d = UNetDiscriminatorSN(num_in_ch=1, num_feat=64)
-        
-        # 2. Calcolo totali
-        total_g = get_total_params(net_g)
-        total_d = get_total_params(net_d)
-        grand_total = total_g + total_d
 
-        # 3. Stampa Riepilogo
-        print("=" * 60)
-        print(" CONTEGGIO TOTALE PARAMETRI")
-        print("-" * 60)
+        # 2. Calcolo Conteggi
+        # Parte HAT (solo il modulo self.hat del generatore)
+        hat_params = sum(p.numel() for p in net_g.hat.parameters())
         
-        print(f" Hybrid Generator (HAT):  {total_g/1e6:6.2f} M  ({total_g:,})")
-        print(f" Discriminator (UNet):    {total_d/1e6:6.2f} M  ({total_d:,})")
-        print("-" * 60)
-        print(f" TOTALE COMPLESSIVO:      {grand_total/1e6:6.2f} M  ({grand_total:,})")
-        print("=" * 60)
+        # Discriminatore (tutto)
+        disc_params = sum(p.numel() for p in net_d.parameters())
+        
+        # Totale (Intero Generatore + Discriminatore)
+        # Nota: Il generatore include anche RRDB e Upsampling, quindi il totale > HAT + Disc
+        total_gen = sum(p.numel() for p in net_g.parameters())
+        grand_total = total_gen + disc_params
+
+        # 3. Stampa
+        print(" ┌───────────────────────────────────────────────────────┐")
+        print(" │ RIEPILOGO PARAMETRI (HAT, DISC, TOT)                  │")
+        print(" ├───────────────────────────────────────────────────────┤")
+        print(" │ Componente                │    Parametri │ Dimensione │")
+        print(" ├───────────────────────────────────────────────────────┤")
+        
+        print_row("Parte HAT (Generator)", hat_params)
+        print_row("Discriminatore", disc_params)
+        
+        print(" ╞═══════════════════════════════════════════════════════╡")
+        print_row("TOTALE SISTEMA", grand_total)
+        print(" └───────────────────────────────────────────────────────┘")
+        print(f"\n *Il Totale include anche le parti ESRGAN/Upsampling del Generatore non listate sopra.\n")
 
     except Exception as e:
-        print(f"❌ Errore durante il calcolo: {e}")
+        print(f"❌ Errore: {e}")
 
 if __name__ == "__main__":
     main()
