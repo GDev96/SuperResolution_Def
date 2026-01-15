@@ -27,7 +27,7 @@ from models.hybridmodels import HybridHATRealESRGAN
 from models.discriminator import UNetDiscriminatorSN
 from dataset.astronomical_dataset import AstronomicalDataset
 from utils.gan_losses import CombinedGANLoss, DiscriminatorLoss
-from utils.metrics import TrainMetrics  # <--- NUOVO IMPORT
+from utils.metrics import TrainMetrics 
 
 # --- CONFIGURAZIONE ---
 BATCH_SIZE = 1 
@@ -169,9 +169,9 @@ def train_worker():
             
             net_g_ema.load_state_dict(net_g.module.state_dict())
             start_epoch = checkpoint['epoch'] + 1
-            if rank == 0: print(f"✅ Resume da epoca {start_epoch}")
+            if rank == 0: print(f"Resume da epoca {start_epoch}")
         except Exception as e:
-            if rank == 0: print(f"❌ Errore resume: {e}")
+            if rank == 0: print(f"Errore resume: {e}")
     else:
         net_g_ema.load_state_dict(net_g.module.state_dict())
 
@@ -185,7 +185,7 @@ def train_worker():
     if rank == 0:
         os.system('cls' if os.name == 'nt' else 'clear')
         print("=" * 70)
-        print(f"🚀 TRAINING HYBRID (Scheduler Attivo & EMA & Logger con PSNR)")
+        print(f"TRAINING HYBRID (Scheduler Attivo & EMA & Logger con PSNR)")
         print(f"   • Start Epoch: {start_epoch}")
         print(f"   • LR G Attuale: {scheduler_g.get_last_lr()[0]:.2e}")
         print(f"   • Accumulation: {GRADIENT_ACCUMULATION}")
@@ -226,7 +226,6 @@ def train_worker():
             sr = net_g(lr)
             
             # --- CALCOLO METRICHE (sul rank corrente) ---
-            # Usiamo detach() per non sporcare il grafo computazionale
             metrics.update(sr.detach(), hr.detach())
 
             l1_loss = criterion_pixel(sr, hr)
@@ -274,7 +273,6 @@ def train_worker():
             ep_d_total += loss_d_val
 
             if rank == 0:
-                # Calcolo PSNR temporaneo per la progress bar (facoltativo, ma utile)
                 # Nota: TrainMetrics accumula, quindi metrics.psnr / metrics.count dà la media attuale
                 curr_psnr = metrics.psnr / metrics.count if metrics.count > 0 else 0.0
                 
@@ -308,8 +306,8 @@ def train_worker():
                     f"{avg_l1:.4f}", 
                     f"{avg_adv:.4f}", 
                     f"{avg_d:.4f}",
-                    f"{avg_psnr:.4f}",   # PSNR
-                    f"{avg_ssim:.4f}",   # SSIM
+                    f"{avg_psnr:.4f}",   
+                    f"{avg_ssim:.4f}",   
                     f"{current_lr:.2e}"
                 ])
 
@@ -328,10 +326,11 @@ def train_worker():
                 save_validation_preview(lr, sr, hr, epoch, preview_dir)
 
     if rank == 0: 
-        print("\n✅ TRAINING COMPLETATO!")
+        print("\nTRAINING COMPLETATO!")
         if os.path.exists("temp_train_combined.json"): os.remove("temp_train_combined.json")
     
     dist.destroy_process_group()
 
 if __name__ == "__main__":
+
     train_worker()
