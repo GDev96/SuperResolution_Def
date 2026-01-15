@@ -1,35 +1,38 @@
-# PyTorch e CUDA (Fondamentali per il training distribuito e DDP)
+# PyTorch e CUDA
 --extra-index-url https://download.pytorch.org/whl/cu118
 torch>=2.0.0
 torchvision
 torchaudio
 
-# Architetture e Modelli (Core)
-basicsr         # Necessario per HAT e RRDBNet
-einops          # Richiesto dalle componenti Attention di HAT
-timm            # Richiesto per alcune implementazioni di backbone
-addict          # Gestione dei file di configurazione in BasicSR
+# Fix Compatibilità Python 3.8 (Versione specifica funzionante)
+typing-extensions==4.12.2
+
+# Architetture e Modelli
+basicsr
+einops
+timm
+addict
 
 # Data Processing & Imaging
-numpy<2.0       # Compatibilità con i tensori PyTorch
-opencv-python   # Elaborazione immagini
-Pillow          # Gestione file TIFF e conversioni
-scikit-image    # Metriche e trasformazioni avanzate
-scipy           # Operazioni matematiche
+numpy<2.0
+opencv-python
+Pillow
+scikit-image
+scipy
 
-# Astrofisica (Specifici per i dataset astronomici)
-astropy         # Gestione metadati e file FITS/TIFF
-astroalign      # Allineamento dei frame
-reproject       # Riprotezione astronomica
+# Astrofisica
+astropy
+astroalign
+reproject
 
 # Training Utility & Logging
-tqdm            # Barre di progresso per il loop di training
-pyyaml          # Parsing dei file di configurazione
-tensorboard     # Visualizzazione perdite e metriche
-nvitop          # Monitoraggio delle GPU Quadro RTX
-pandas          # Analisi dei log di training
+tqdm
+pyyaml
+tensorboard
+nvitop
+pandas
 
 # Varie
-matplotlib      # Visualizzazione grafici e preview
-lmdb            # Database opzionale per velocizzare il caricamento dati
-yapf            # Formatting del codice
+matplotlib
+lmdb
+yapf
