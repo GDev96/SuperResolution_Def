@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import shutil
 import torch
@@ -12,17 +13,21 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import sys
 
+# ================= CONFIGURAZIONE GLOBALE =================
 CURRENT_SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_SCRIPT_DIR.parent
 ROOT_DATA_DIR = PROJECT_ROOT / "data"
 
+# --- PARAMETRI DI CONTRASTO ---
 USE_LOG_STRETCH = True 
-BLACK_CLIP_PERCENTILE = 4.0 
+BLACK_CLIP_PERCENTILE = 4.0 # Percentile per definire il livello del "nero" (fondo cielo)
 
-NUM_SAMPLES_PER_IMG = 4000 
+NUM_SAMPLES_PER_IMG = 4000 # Numero di pixel campionati per immagine per calcolare le statistiche
 BATCH_SIZE = 32
 NUM_WORKERS = 4
 DEBUG_INTERVAL = 50 
+
+# ================= DATASET PYTORCH (per il campionamento statistico) =================
 class RawFitsDataset(Dataset):
     """Dataset semplificato per caricare i file FITS per il campionamento statistico."""
     def __init__(self, file_list):
@@ -42,6 +47,7 @@ class RawFitsDataset(Dataset):
         except Exception:
             return torch.zeros((1, 1))
 
+# ================= FUNZIONI STATISTICHE ROBUSTE =================
 def calculate_robust_stats(file_list):
     """
     Calcola i percentili robusti (minimo e massimo) per definire il range dinamico.
@@ -66,6 +72,7 @@ def calculate_robust_stats(file_list):
         valid_pixels = batch_flat[valid_mask]
         
         if valid_pixels.numel() > 0:
+            # Campionamento casuale per accelerare il calcolo su immagini molto grandi
             num_take = min(valid_pixels.numel(), NUM_SAMPLES_PER_IMG * batch.shape[0])
             indices = torch.randperm(valid_pixels.numel())[:num_take]
             sampled_pixels.append(valid_pixels[indices].numpy())
@@ -76,13 +83,16 @@ def calculate_robust_stats(file_list):
 
     full_sample = np.concatenate(sampled_pixels)
     
+    # Clipping del nero (percentile basso) per eliminare il rumore di fondo
     global_min = np.percentile(full_sample, BLACK_CLIP_PERCENTILE) 
+    # Clipping del bianco (percentile alto) per contenere i pixel molto luminosi
     global_max = np.percentile(full_sample, 99.99)
     
-    print(f"Min (Nero) calcolato al {BLACK_CLIP_PERCENTILE}° percentile: {global_min:.4f}")
+    print(f" 	 	Min (Nero) calcolato al {BLACK_CLIP_PERCENTILE}° percentile: {global_min:.4f}")
     
     return global_min, global_max
 
+# ================= VISUALIZZAZIONE =================
 def save_debug_png(hr_raw, lr_raw, hr_norm, lr_norm, clip_percentile, save_path):
     """Salva una scheda debug per visualizzare il risultato della normalizzazione."""
     fig, axes = plt.subplots(2, 2, figsize=(10, 10), facecolor='#000000')
@@ -93,6 +103,7 @@ def save_debug_png(hr_raw, lr_raw, hr_norm, lr_norm, clip_percentile, save_path)
     axes[0,1].imshow(np.log1p(np.maximum(lr_raw, 1e-5)), cmap='viridis')
     axes[0,1].set_title("Obs RAW (Log)", color='white')
     
+    # NORMALIZED (Immagini finali 16-bit)
     axes[1,0].imshow(hr_norm, cmap='gray', vmin=0, vmax=65535)
     axes[1,0].set_title(f"Hubble AI Input (Clip {clip_percentile}%)", color='white')
     
@@ -104,6 +115,7 @@ def save_debug_png(hr_raw, lr_raw, hr_norm, lr_norm, clip_percentile, save_path)
     plt.savefig(save_path, facecolor='#000000')
     plt.close()
 
+# --- LOGICA DI ELABORAZIONE SINGOLO TARGET ---
 def process_single_normalization(target_dir):
     """Logica principale per la normalizzazione e conversione TIFF su una singola directory."""
 
@@ -116,6 +128,7 @@ def process_single_normalization(target_dir):
     if debug_dir.exists(): shutil.rmtree(debug_dir)
     debug_dir.mkdir(parents=True)
 
+    # Identificazione delle coppie di patch FITS
     all_pairs = sorted(list(input_dir.glob("pair_*")))
     hubble_files = [p / "hubble.fits" for p in all_pairs if (p/"hubble.fits").exists()]
     obs_files = [p / "observatory.fits" for p in all_pairs if (p/"observatory.fits").exists()]
@@ -126,9 +139,11 @@ def process_single_normalization(target_dir):
 
     print(f"\nNORMALIZZAZIONE DEEP BLACK (Clip {BLACK_CLIP_PERCENTILE}%)")
     
+    # Calcolo delle statistiche globali (Hubble)
     print("\n--- Analisi Hubble (HR) ---")
     h_min, h_max = calculate_robust_stats(hubble_files)
 
+    # Calcolo delle statistiche globali (Osservatorio)
     print("\n--- Analisi Observatory (LR) ---")
     o_min, o_max = calculate_robust_stats(obs_files)
     
@@ -145,9 +160,11 @@ def process_single_normalization(target_dir):
                 d_h = np.log1p(np.maximum(d_h, 0))
                 d_o = np.log1p(np.maximum(d_o, 0))
 
+            # Normalizzazione: (valore - min) / (max - min)
             d_h_norm = (d_h - h_min) / (h_max - h_min + 1e-8)
             d_o_norm = (d_o - o_min) / (o_max - o_min + 1e-8)
 
+            # Clipping [0, 1]
             d_h_norm = np.clip(d_h_norm, 0, 1)
             d_o_norm = np.clip(d_o_norm, 0, 1)
 
@@ -156,7 +173,6 @@ def process_single_normalization(target_dir):
 
             p_out = output_dir / pair_path.name
             p_out.mkdir(exist_ok=True)
-
             Image.fromarray(h_u16, mode='I;16').save(p_out / "hubble.tiff")
             Image.fromarray(o_u16, mode='I;16').save(p_out / "observatory.tiff")
 
@@ -172,6 +188,8 @@ def process_single_normalization(target_dir):
     shutil.make_archive(str(zip_name), 'zip', str(debug_dir))
     print(f"Zippando cartella debug in: {zip_name}.zip")
 
+
+# --- MENU SELEZIONE AGGIORNATO (Multi-Target) ---
 def select_target_directories(required_subdir='6_patches_final'):
     """
     Consente la selezione di una, più o tutte le directory target che contengono la sottocartella richiesta.
@@ -215,6 +233,7 @@ def select_target_directories(required_subdir='6_patches_final'):
     except Exception: 
         return []
 
+# --- MAIN CONTROLLER (Modificato per Avanzamento) ---
 def main():
     """Funzione di controllo che gestisce l'input e itera sui target."""
     target_dirs = select_target_directories('6_patches_final')
@@ -222,7 +241,7 @@ def main():
         print("Nessun target selezionato. Esco.")
         return
 
-    total_targets = len(target_dirs)
+    total_targets = len(target_dirs) 
     
     for i, target_dir in enumerate(target_dirs):
         current_index = i + 1 
