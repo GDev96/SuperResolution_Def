@@ -27,17 +27,20 @@ except ImportError:
 
 warnings.filterwarnings('ignore')
 
+# ================= CONFIGURAZIONE =================
 CURRENT_SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_SCRIPT_DIR.parent
 ROOT_DATA_DIR = PROJECT_ROOT / "data"
 LOG_DIR_ROOT = PROJECT_ROOT / "logs"
 
-FORCE_FOV = 0.46  
-USE_MANUAL_FOV = True 
+# === IMPOSTAZIONI TELESCOPIO (Salvagente per M33) ===
+FORCE_FOV = 0.46  #focale telescopio osservatorio in gradi
+USE_MANUAL_FOV = True # Mettere False se vuoi che ASTAP legga sempre dall'header
 
 NUM_THREADS = 2 
 log_lock = threading.Lock()
 
+# ================= UTILITY & SETUP =================
 def setup_logging():
     os.makedirs(LOG_DIR_ROOT, exist_ok=True)
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -65,6 +68,7 @@ def find_astap_path():
             r"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\ASTAP\astap.exe"
         ]
     else:
+        # Percorsi standard Linux/Mac
         possible_paths = [
             "/opt/astap/astap",
             "/usr/bin/astap",
@@ -100,6 +104,7 @@ def select_target_directory():
         return [subdirs[idx]] if 0 <= idx < len(subdirs) else []
     except: return []
 
+# ================= STEP 1: ASTAP SOLVING =================
 def run_astap_cmd(cmd, logger):
     """
     Esegue il comando ASTAP gestendo le differenze tra Windows (startupinfo) e Linux.
@@ -120,6 +125,7 @@ def solve_with_astap(inp_file, out_file, astap_exe, logger):
     try:
         shutil.copy2(inp_file, out_file)
         
+        # Controllo esistenza di WCS
         try:
             with fits.open(out_file) as hdul:
                 for hdu in hdul:
@@ -129,6 +135,7 @@ def solve_with_astap(inp_file, out_file, astap_exe, logger):
                     except: pass
         except: pass 
         
+        # --- TENTATIVO 1: Solving Veloce (usa header) ---
         cmd_fast = [astap_exe, "-f", str(out_file), "-update", "-r", "30", "-z", "0"]
         res = run_astap_cmd(cmd_fast, logger)
         
@@ -139,6 +146,7 @@ def solve_with_astap(inp_file, out_file, astap_exe, logger):
                     solved = True
                     break
 
+        # --- TENTATIVO 2: Blind Solve (Forza Bruta) ---
         if not solved:
             cmd_blind = [astap_exe, "-f", str(out_file), "-update", "-r", "180", "-z", "0"]
             
@@ -185,6 +193,7 @@ def process_step1_folder(inp_dir, out_dir, astap_exe, logger):
             if f.result(): success += 1
     return success
 
+# ================= STEP 2: REGISTRAZIONE =================
 def get_best_hdu(hdul):
     for hdu in hdul:
         if hdu.data is not None and hdu.data.ndim >= 2: return hdu
@@ -246,7 +255,8 @@ def main_registration(h_in, o_in, h_out, o_out, logger):
     h_files = list(h_in.glob('*_solved.fits'))
     o_files = list(o_in.glob('*_solved.fits'))
     
-    print("Lettura WCS headers...")
+    # Estrazione Info
+    print("   Lettura WCS headers...")
     h_infos = [x for x in [extract_wcs_info(f, logger) for f in h_files] if x]
     o_infos = [x for x in [extract_wcs_info(f, logger) for f in o_files] if x]
     
@@ -255,7 +265,7 @@ def main_registration(h_in, o_in, h_out, o_out, logger):
         return False
     
     common_wcs = h_infos[0]['wcs']
-    print(f"Master Ref (Hubble): RA {common_wcs.wcs.crval[0]:.4f}, DEC {common_wcs.wcs.crval[1]:.4f}")
+    print(f"   Master Ref (Hubble): RA {common_wcs.wcs.crval[0]:.4f}, DEC {common_wcs.wcs.crval[1]:.4f}")
     
     success = 0
     with ThreadPoolExecutor(max_workers=NUM_THREADS) as ex:
@@ -268,6 +278,7 @@ def main_registration(h_in, o_in, h_out, o_out, logger):
             
     return success > 0
 
+# ================= MAIN =================
 def main():
     logger = setup_logging()
     ASTAP_PATH = find_astap_path()
@@ -293,7 +304,7 @@ def main():
         
         for p in [out_solved_o, out_solved_h, out_reg_o, out_reg_h]: p.mkdir(parents=True, exist_ok=True)
 
-        print("[1/2] Astrometric Solving...")
+        print("   [1/2] Astrometric Solving...")
         s1 = process_step1_folder(in_o, out_solved_o, ASTAP_PATH, logger)
         s2 = process_step1_folder(in_h, out_solved_h, ASTAP_PATH, logger)
         
@@ -301,7 +312,7 @@ def main():
             print("Nessun file risolto. Controlla il FOV in ASTAP.")
             continue
 
-        print("[2/2] Registrazione e Riproiezione...")
+        print("   [2/2] Registrazione e Riproiezione...")
         if main_registration(out_solved_h, out_solved_o, out_reg_h, out_reg_o, logger):
             print("Pipeline Completata.")
         else:
