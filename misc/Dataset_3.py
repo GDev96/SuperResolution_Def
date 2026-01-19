@@ -19,6 +19,7 @@ from reproject import reproject_interp
 import threading
 import math
 
+# --- CONFIGURAZIONE ---
 warnings.filterwarnings('ignore')
 
 CURRENT_SCRIPT_DIR = Path(__file__).resolve().parent
@@ -32,6 +33,7 @@ MIN_COVERAGE = 0.50
 MIN_PIXEL_VALUE = 0.0001 
 DEBUG_SAMPLES = 50
 
+# --- DATI DI CALIBRAZIONE (STRIDE 40) ---
 REF_YIELDS = {
     "M1": 850,
     "M82": 1400,
@@ -41,10 +43,12 @@ REF_YIELDS = {
     "NGC": 1200  
 }
 
+# Globali per il multiprocessing
 log_lock = threading.Lock()
 shared_data = {}
 patch_index_counter = 0
 
+# --- FUNZIONI DI UTILITÀ ---
 def get_pixel_scale_deg(wcs):
     scales = proj_plane_pixel_scales(wcs)
     return np.mean(scales)
@@ -155,6 +159,8 @@ def save_diagnostic_card(data_h_orig, data_o_raw_orig,
     except Exception as e:
         print(f"\nERRORE PNG: {e}")
 
+# --- LOGICA CALCOLO STRIDE ---
+
 def calculate_stride_for_target(folder_name, desired_count):
     """Calcola lo stride specifico per una cartella dato un obiettivo globale"""
     folder_upper = folder_name.upper()
@@ -190,6 +196,9 @@ def calculate_stride_for_target(folder_name, desired_count):
         print(f"Nessun dato storico per '{folder_name}'. Uso stride default {REF_STRIDE}px.")
         return REF_STRIDE
 
+
+
+# --- LOGICA MULTIPROCESSING ---
 def init_worker(d_h, hdr_h, w_h, out_fits, out_png, h_fov_deg, o_files):
     global patch_index_counter
     shared_data['h'] = d_h
@@ -274,6 +283,9 @@ def process_single_patch_multi(args):
             
     return saved_count
 
+
+
+# --- MENU SELEZIONE MULTIPLA ---
 def select_target_directories():
     all_subdirs = [d for d in ROOT_DATA_DIR.iterdir() if d.is_dir() and d.name not in ['splits', 'logs']]
     
@@ -315,6 +327,8 @@ def select_target_directories():
         print("Errore nel formato input.")
         return []
 
+# --- MAIN ---
+
 def main():
     print(f"ESTRAZIONE PATCH MULTIPLA & DINAMICA")
     
@@ -341,11 +355,11 @@ def main():
         else:
             print("Nessun obiettivo specifico. Userò stride fisso (40px).")
     except ValueError:
-        print("Input non valido. Userò stride fisso.")
+        print("Input non valido. Userò stride fisso (40px).")
 
     for i, target_dir in enumerate(target_dirs):
         print(f"\n" + "#"*60)
-        print(f"PROCESSING: {target_dir.name}")
+        print(f"[{i+1}/{len(target_dirs)}] PROCESSING: {target_dir.name}")
         print("#"*60)
         
         calculated_stride = calculate_stride_for_target(target_dir.name, global_desired_count)
@@ -413,13 +427,13 @@ def main():
             
             results = list(tqdm(ex.map(process_single_patch_multi, tasks), total=len(tasks), ncols=100))
             total_saved = sum(results)
-            
+
         target_name = target_dir.name
         zip_fits_name = target_dir / f"{target_name}_patches"
         shutil.make_archive(str(zip_fits_name), 'zip', str(out_fits))
         zip_png_name = target_dir / f"{target_name}_debug_visuals"
         shutil.make_archive(str(zip_png_name), 'zip', str(out_png))
-        print(f"Archivi creati.")
+        print(f"  Archivi creati.")
 
     print("\nTUTTE LE OPERAZIONI COMPLETATE.")
 
