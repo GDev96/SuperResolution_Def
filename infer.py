@@ -17,7 +17,7 @@ from typing import List
 import torchvision.transforms.functional as TF_functional
 sys.modules['torchvision.transforms.functional_tensor'] = TF_functional
 
-# --- CONFIGURAZIONE PERCORSI ---
+
 CURRENT_SCRIPT = Path(__file__).resolve()
 PROJECT_ROOT = CURRENT_SCRIPT.parent
 OUTPUT_ROOT = PROJECT_ROOT / "outputs"
@@ -27,13 +27,13 @@ ROOT_DATA_DIR = PROJECT_ROOT / "data"
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-# --- IMPORT MODULI PROGETTO ---
+
 try:
     from models.hybridmodels import HybridHATRealESRGAN
     from dataset.astronomical_dataset import AstronomicalDataset
     from utils.metrics import TrainMetrics, ssim_torch
 except ImportError as e:
-    sys.exit(f"❌ Errore Import: {e}. Assicurati di essere nella root del progetto.")
+    sys.exit(f" Errore Import: {e}. Assicurati di essere nella root del progetto.")
 
 # Ottimizzazione
 torch.backends.cudnn.benchmark = True
@@ -54,21 +54,21 @@ def detect_hybrid_params(state_dict):
     Analizza i pesi salvati per dedurre la configurazione.
     Defaults impostati sulla versione 'Small' (Soft) usata nel training.
     """
-    # === CONFIGURAZIONE DEFAULT (Small/Soft) ===
+  
     params = {
         'img_size': 128,
         'in_chans': 1,
-        'embed_dim': 90,        # <--- Modificato da 180 a 90
-        'depths': (6, 6, 6, 6), # <--- Modificato da 6 stadi a 4 stadi
+        'embed_dim': 90,      
+        'depths': (6, 6, 6, 6), 
         'num_heads': (6, 6, 6, 6),
         'window_size': 8,       
         'upscale': 4,
-        'num_rrdb': 12,         # <--- Modificato da 23 a 12
-        'num_feat': 48,         # <--- Modificato da 64 a 48
-        'num_grow_ch': 24       # <--- Modificato da 32 a 24
+        'num_rrdb': 12,        
+        'num_feat': 48,         
+        'num_grow_ch': 24     
     }
     
-    print("🔍 Analisi parametri dal checkpoint...")
+    print(" Analisi parametri dal checkpoint...")
     
     # 1. Rileva embed_dim
     if 'hat.conv_first.weight' in state_dict:
@@ -118,8 +118,8 @@ def get_available_targets(output_root: Path) -> List[str]:
 
 def run_test(target_model_folder: str):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"\n🖥️  Device in uso: {device}")
-    print("📋 Modalità: Inferenza Hybrid HAT+ESRGAN (Configurazione Soft)")
+    print(f"\n  Device in uso: {device}")
+    print(" Modalità: Inferenza Hybrid HAT+ESRGAN (Configurazione Soft)")
 
     # --- PERCORSI FILES ---
     target_path = OUTPUT_ROOT / target_model_folder
@@ -146,11 +146,11 @@ def run_test(target_model_folder: str):
         checkpoints = list(CHECKPOINT_DIR.glob("*.pth"))
 
     if not checkpoints:
-        print(f"❌ Nessun checkpoint trovato in {CHECKPOINT_DIR}")
+        print(f" Nessun checkpoint trovato in {CHECKPOINT_DIR}")
         return
     
     CHECKPOINT_PATH = checkpoints[0]
-    print(f"📦 Caricamento checkpoint: {CHECKPOINT_PATH.name}")
+    print(f" Caricamento checkpoint: {CHECKPOINT_PATH.name}")
 
     # --- CARICAMENTO MODELLO ---
     try:
@@ -170,10 +170,10 @@ def run_test(target_model_folder: str):
         
         model = HybridHATRealESRGAN(**model_params).to(device)
         model.load_state_dict(clean_state_dict, strict=True)
-        print("✓ Pesi caricati correttamente.")
+        print(" Pesi caricati correttamente.")
         
     except Exception as e:
-        print(f"❌ Errore caricamento modello: {e}")
+        print(f" Errore caricamento modello: {e}")
         return
 
     model.eval()
@@ -183,7 +183,7 @@ def run_test(target_model_folder: str):
     targets_names = clean_name.split("_")
     
     all_test_data = []
-    print("\n📂 Ricerca Dataset Test...")
+    print("\n Ricerca Dataset Test...")
     
     for t in targets_names:
         json_path = ROOT_DATA_DIR / t / "8_dataset_split" / "splits_json" / "test.json"
@@ -194,10 +194,10 @@ def run_test(target_model_folder: str):
                 data = json.load(f)
                 all_test_data.extend(data)
         else:
-            print(f"   ⚠️  Non trovato JSON per: {t}")
+            print(f"     Non trovato JSON per: {t}")
 
     if not all_test_data:
-        print("❌ Nessun dato di test trovato.")
+        print(" Nessun dato di test trovato.")
         return
 
     TEMP_JSON = BASE_RESULTS / "temp_test_infer.json"
@@ -209,7 +209,7 @@ def run_test(target_model_folder: str):
     metrics = TrainMetrics()
     csv_log_path = BASE_RESULTS / "test_metrics.csv"
     
-    print(f"\n🚀 Inizio inferenza su {len(test_ds)} immagini...")
+    print(f"\n Inizio inferenza su {len(test_ds)} immagini...")
 
     # --- LOOP DI INFERENZA ---
     with open(csv_log_path, 'w', newline='') as f:
@@ -247,12 +247,12 @@ def run_test(target_model_folder: str):
 
     results = metrics.compute()
     print("\n" + "="*50)
-    print(f"✅ TEST COMPLETATO.")
-    print(f"📊 PSNR Medio: {results['psnr']:.2f} dB")
-    print(f"📊 SSIM Medio: {results['ssim']:.4f}")
-    print(f"💾 TIFF salvati in: .../{TIFF_DIR.parent.name}/{TIFF_DIR.name}")
-    print(f"🖼️  PNG salvati in:  .../{PNG_DIR.parent.name}/{PNG_DIR.name}")
-    print(f"📄 CSV Metriche:    {csv_log_path.name}")
+    print(f" TEST COMPLETATO.")
+    print(f" PSNR Medio: {results['psnr']:.2f} dB")
+    print(f" SSIM Medio: {results['ssim']:.4f}")
+    print(f" TIFF salvati in: .../{TIFF_DIR.parent.name}/{TIFF_DIR.name}")
+    print(f"  PNG salvati in:  .../{PNG_DIR.parent.name}/{PNG_DIR.name}")
+    print(f" CSV Metriche:    {csv_log_path.name}")
     print("="*50)
 
 if __name__ == "__main__":
@@ -280,6 +280,6 @@ if __name__ == "__main__":
         if target:
             run_test(target)
         else:
-            print("❌ Selezione non valida.")
+            print(" Selezione non valida.")
     else:
         print("❌ Nessuna cartella trovata in 'outputs'. Assicurati di aver fatto il training.")
