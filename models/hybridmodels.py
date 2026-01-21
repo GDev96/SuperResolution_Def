@@ -138,6 +138,6 @@ class HybridHATRealESRGAN(nn.Module):
             
             hat_state_cleaned = {k.replace('module.', ''): v for k, v in hat_state.items()}
             self.hat.load_state_dict(hat_state_cleaned, strict=False)
-            print(f"✓ HAT pre-trained caricato da {hat_path}")
+            print(f" HAT pre-trained caricato da {hat_path}")
         except Exception as e:
-            print(f"⚠️  Errore caricamento HAT pre-trained: {e}")
+            print(f"  Errore caricamento HAT pre-trained: {e}")
