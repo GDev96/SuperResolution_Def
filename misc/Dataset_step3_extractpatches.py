@@ -19,7 +19,7 @@ from reproject import reproject_interp
 import threading
 import math
 
-# --- CONFIGURAZIONE ---
+
 warnings.filterwarnings('ignore')
 
 CURRENT_SCRIPT_DIR = Path(__file__).resolve().parent
@@ -33,7 +33,7 @@ MIN_COVERAGE = 0.50
 MIN_PIXEL_VALUE = 0.0001 
 DEBUG_SAMPLES = 50
 
-# --- DATI DI CALIBRAZIONE (STRIDE 40) ---
+
 REF_YIELDS = {
     "M1": 850,
     "M82": 1400,
@@ -43,12 +43,12 @@ REF_YIELDS = {
     "NGC": 1200  
 }
 
-# Globali per il multiprocessing
+
 log_lock = threading.Lock()
 shared_data = {}
 patch_index_counter = 0
 
-# --- FUNZIONI DI UTILITÀ ---
+
 def get_pixel_scale_deg(wcs):
     scales = proj_plane_pixel_scales(wcs)
     return np.mean(scales)
@@ -159,7 +159,7 @@ def save_diagnostic_card(data_h_orig, data_o_raw_orig,
     except Exception as e:
         print(f"\nERRORE PNG: {e}")
 
-# --- LOGICA CALCOLO STRIDE ---
+
 
 def calculate_stride_for_target(folder_name, desired_count):
     """Calcola lo stride specifico per una cartella dato un obiettivo globale"""
@@ -198,7 +198,7 @@ def calculate_stride_for_target(folder_name, desired_count):
 
 
 
-# --- LOGICA MULTIPROCESSING ---
+
 def init_worker(d_h, hdr_h, w_h, out_fits, out_png, h_fov_deg, o_files):
     global patch_index_counter
     shared_data['h'] = d_h
@@ -285,7 +285,7 @@ def process_single_patch_multi(args):
 
 
 
-# --- MENU SELEZIONE MULTIPLA ---
+
 def select_target_directories():
     all_subdirs = [d for d in ROOT_DATA_DIR.iterdir() if d.is_dir() and d.name not in ['splits', 'logs']]
     
@@ -327,7 +327,7 @@ def select_target_directories():
         print("Errore nel formato input.")
         return []
 
-# --- MAIN ---
+
 
 def main():
     print(f"ESTRAZIONE PATCH MULTIPLA & DINAMICA")
