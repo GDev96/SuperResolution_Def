@@ -14,7 +14,7 @@ from tqdm import tqdm
 from PIL import Image
 import warnings
 
-# Filtro warning
+
 warnings.filterwarnings("ignore", category=UserWarning, module="torchvision.models._utils")
 warnings.filterwarnings("ignore", message="Grad strides do not match bucket view strides")
 warnings.filterwarnings("ignore", message="torch.meshgrid: in an upcoming release")
@@ -22,14 +22,14 @@ warnings.filterwarnings("ignore", message="torch.meshgrid: in an upcoming releas
 import torchvision.transforms.functional as TF_functional
 sys.modules['torchvision.transforms.functional_tensor'] = TF_functional
 
-# Import Moduli Progetto
+
 from models.hybridmodels import HybridHATRealESRGAN
 from models.discriminator import UNetDiscriminatorSN
 from dataset.astronomical_dataset import AstronomicalDataset
 from utils.gan_losses import CombinedGANLoss, DiscriminatorLoss
 from utils.metrics import TrainMetrics 
 
-# --- CONFIGURAZIONE ---
+
 BATCH_SIZE = 1 
 LR_G = 1e-4
 LR_D = 1e-4
@@ -101,11 +101,11 @@ def train_worker():
         ckpt_dir.mkdir(parents=True, exist_ok=True)
         preview_dir.mkdir(parents=True, exist_ok=True)
         
-        # --- MODIFICA HEADER CSV ---
+
         if not log_path.exists():
             with open(log_path, "w", newline='') as f:
                 writer = csv.writer(f)
-                # Aggiunte colonne PSNR e SSIM
+              
                 writer.writerow(["Epoch", "G_Total", "L1", "G_Adv", "D_Total", "PSNR", "SSIM", "LR"])
 
     if args.resume is None:
@@ -120,7 +120,7 @@ def train_worker():
             if json_path.exists():
                 with open(json_path, 'r') as f: all_pairs.extend(json.load(f))
         
-        if not all_pairs: sys.exit("❌ Errore: Nessun dato trovato!")
+        if not all_pairs: sys.exit(" Errore: Nessun dato trovato!")
         with open("temp_train_combined.json", 'w') as f: json.dump(all_pairs, f)
 
     dist.barrier()
@@ -199,7 +199,7 @@ def train_worker():
         net_g.train()
         net_d.train()
         
-        # --- INIZIALIZZA METRICHE ---
+   
         metrics = TrainMetrics()
         
         is_warmup = epoch <= WARMUP_EPOCHS
@@ -225,7 +225,7 @@ def train_worker():
             
             sr = net_g(lr)
             
-            # --- CALCOLO METRICHE (sul rank corrente) ---
+        
             metrics.update(sr.detach(), hr.detach())
 
             l1_loss = criterion_pixel(sr, hr)
@@ -273,7 +273,7 @@ def train_worker():
             ep_d_total += loss_d_val
 
             if rank == 0:
-                # Nota: TrainMetrics accumula, quindi metrics.psnr / metrics.count dà la media attuale
+                
                 curr_psnr = metrics.psnr / metrics.count if metrics.count > 0 else 0.0
                 
                 loader_bar.set_postfix({
@@ -293,7 +293,7 @@ def train_worker():
             avg_adv = ep_g_adv / steps if steps > 0 else 0
             avg_d = ep_d_total / steps if steps > 0 else 0
             
-            # --- RECUPERO METRICHE FINALI EPOCA ---
+           
             epoch_results = metrics.compute()
             avg_psnr = epoch_results['psnr']
             avg_ssim = epoch_results['ssim']
@@ -321,7 +321,7 @@ def train_worker():
                 torch.save(checkpoint, ckpt_dir / f"hybrid_epoch_{epoch:03d}.pth")
                 torch.save(net_g.module.state_dict(), ckpt_dir / "best_hybrid_model.pth")
                 torch.save(net_g_ema.state_dict(), ckpt_dir / "best_hybrid_model_EMA.pth")
-                tqdm.write(f"💾 Checkpoint e EMA salvati (PSNR: {avg_psnr:.2f} dB)")
+                tqdm.write(f" Checkpoint e EMA salvati (PSNR: {avg_psnr:.2f} dB)")
 
             if epoch % SAVE_INTERVAL_IMG == 0:
                 save_validation_preview(lr, sr, hr, epoch, preview_dir)
@@ -335,4 +335,5 @@ def train_worker():
 if __name__ == "__main__":
 
     train_worker()
+
 
