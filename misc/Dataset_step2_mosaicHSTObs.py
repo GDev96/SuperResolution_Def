@@ -12,7 +12,7 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-# ================= CONFIGURAZIONE =================
+
 CURRENT_SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_SCRIPT_DIR.parent
 ROOT_DATA_DIR = PROJECT_ROOT / "data"
@@ -74,10 +74,10 @@ def create_hubble_mosaic(folder_path, target_wcs, target_shape):
 
     print(f"Creazione Mosaico Hubble da {len(files)} tasselli...")
     
-    # Creiamo una tela vuota con le dimensioni dell'Osservatorio
+   
     mosaic_canvas = np.zeros(target_shape, dtype=np.float32)
     
-    # Per ogni file Hubble
+ 
     for f in tqdm(files, desc="   Stitching Hubble"):
         try:
             with fits.open(f) as hdul:
@@ -87,14 +87,14 @@ def create_hubble_mosaic(folder_path, target_wcs, target_shape):
                 if data is None or wcs is None: continue
                 if data.ndim == 3: data = data[0]
                 
-                # Riproietta questo tassello sulla tela globale
+               
                 reproj_data, footprint = reproject_interp(
                     (data, wcs), 
                     target_wcs, 
                     shape_out=target_shape
                 )
                 
-                # Sovrapponiamo alla tela
+            
                 reproj_data = np.nan_to_num(reproj_data, nan=0.0)
                 mosaic_canvas = np.maximum(mosaic_canvas, reproj_data)
                 
@@ -139,27 +139,27 @@ def main():
     img_h = normalize_zscale(hubble_mosaic)
 
     rgb_overlay = np.zeros((img_o.shape[0], img_o.shape[1], 3), dtype=np.float32)
-    rgb_overlay[..., 1] = img_h * 0.8       # Green
-    rgb_overlay[..., 0] = img_o * 0.5       # Red
-    rgb_overlay[..., 2] = img_o * 0.5       # Blue
+    rgb_overlay[..., 1] = img_h * 0.8       
+    rgb_overlay[..., 0] = img_o * 0.5      
+    rgb_overlay[..., 2] = img_o * 0.5       
 
     fig = plt.figure(figsize=(18, 6), facecolor='black')
 
-    # Hubble Mosaic
+ 
     ax1 = plt.subplot(1, 3, 1, projection=obs_wcs)
     ax1.imshow(img_h, cmap='gray', origin='lower', vmin=0, vmax=1)
     ax1.set_title("Hubble Mosaic (Projected)", color='white')
     ax1.coords.grid(color='white', alpha=0.2)
     ax1.set_facecolor('black')
 
-    # Observatory
+
     ax2 = plt.subplot(1, 3, 2, projection=obs_wcs)
     ax2.imshow(img_o, cmap='magma', origin='lower', vmin=0, vmax=1)
     ax2.set_title("Observatory Master", color='white')
     ax2.coords.grid(color='white', alpha=0.2)
     ax2.set_facecolor('black')
 
-    # Overlay
+    
     ax3 = plt.subplot(1, 3, 3, projection=obs_wcs)
     ax3.imshow(rgb_overlay, origin='lower')
     ax3.set_title(f"Mosaic Check ({target_dir.name})", color='white', fontweight='bold')
