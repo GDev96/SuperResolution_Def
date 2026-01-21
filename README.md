@@ -1,1 +1,0 @@
-da sistrmare i path
