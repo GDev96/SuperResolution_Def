@@ -35,7 +35,7 @@ LR_G = 1e-4
 LR_D = 1e-4
 NUM_EPOCHS = 300
 WARMUP_EPOCHS = 30       
-SAVE_INTERVAL_CKPT = 3   
+SAVE_INTERVAL_CKPT = 5   
 SAVE_INTERVAL_IMG = 10   
 GRADIENT_ACCUMULATION = 16
 
@@ -297,19 +297,20 @@ def train_worker():
             epoch_results = metrics.compute()
             avg_psnr = epoch_results['psnr']
             avg_ssim = epoch_results['ssim']
-
-            with open(log_path, "a", newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow([
-                    epoch, 
-                    f"{avg_g:.4f}", 
-                    f"{avg_l1:.4f}", 
-                    f"{avg_adv:.4f}", 
-                    f"{avg_d:.4f}",
-                    f"{avg_psnr:.4f}",   
-                    f"{avg_ssim:.4f}",   
-                    f"{current_lr:.2e}"
-                ])
+            
+            if epoch % 10 == 0:
+                with open(log_path, "a", newline='') as f:
+                    writer = csv.writer(f)
+                    writer.writerow([
+                        epoch, 
+                        f"{avg_g:.4f}", 
+                        f"{avg_l1:.4f}", 
+                        f"{avg_adv:.4f}", 
+                        f"{avg_d:.4f}",
+                        f"{avg_psnr:.4f}",   
+                        f"{avg_ssim:.4f}",   
+                        f"{current_lr:.2e}"
+                    ])
 
             if epoch % SAVE_INTERVAL_CKPT == 0 or epoch == NUM_EPOCHS:
                 checkpoint = {
@@ -334,3 +335,4 @@ def train_worker():
 if __name__ == "__main__":
 
     train_worker()
+
