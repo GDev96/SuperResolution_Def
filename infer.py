@@ -251,7 +251,7 @@ def run_test(target_model_folder: str):
     print(f" PSNR Medio: {results['psnr']:.2f} dB")
     print(f" SSIM Medio: {results['ssim']:.4f}")
     print(f" TIFF salvati in: .../{TIFF_DIR.parent.name}/{TIFF_DIR.name}")
-    print(f"  PNG salvati in:  .../{PNG_DIR.parent.name}/{PNG_DIR.name}")
+    print(f" PNG salvati in:  .../{PNG_DIR.parent.name}/{PNG_DIR.name}")
     print(f" CSV Metriche:    {csv_log_path.name}")
     print("="*50)
 
@@ -260,9 +260,7 @@ if __name__ == "__main__":
     available = get_available_targets(OUTPUT_ROOT)
     
     if available:
-        print("\n==========================================")
-        print("      INFERENZA HYBRID HAT (XPixel)       ")
-        print("==========================================\n")
+
         print("Cartelle output disponibili:")
         for idx, name in enumerate(available):
             print(f"   [{idx}] {name}")
@@ -282,4 +280,4 @@ if __name__ == "__main__":
         else:
             print(" Selezione non valida.")
     else:
-        print("❌ Nessuna cartella trovata in 'outputs'. Assicurati di aver fatto il training.")
+        print(" Nessuna cartella trovata in 'outputs'. Assicurati di aver fatto il training.")
