@@ -5,10 +5,10 @@ import torch.nn as nn
 import torchvision.transforms.functional as TF_functional
 from pathlib import Path
 
-# Fix per torchvision
+
 sys.modules['torchvision.transforms.functional_tensor'] = TF_functional
 
-# Setup percorsi
+
 CURRENT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(CURRENT_DIR))
 
@@ -16,9 +16,8 @@ try:
     from models.hybridmodels import HybridHATRealESRGAN
     from models.discriminator import UNetDiscriminatorSN
 except ImportError as e:
-    sys.exit(f"❌ Errore Import: {e}")
+    sys.exit(f" Errore Import: {e}")
 
-# --- CONFIGURAZIONE ---
 MODEL_CONFIG = {
     "img_size": 128,
     "in_chans": 1,
@@ -41,19 +40,17 @@ def main():
     print("\n🔨 Calcolo parametri in corso...\n")
 
     try:
-        # 1. Istanziazione
+    
         net_g = HybridHATRealESRGAN(**MODEL_CONFIG)
         net_d = UNetDiscriminatorSN(num_in_ch=1, num_feat=64)
 
-        # 2. Calcolo Conteggi
-        # Parte HAT (solo il modulo self.hat del generatore)
+     
         hat_params = sum(p.numel() for p in net_g.hat.parameters())
         
-        # Discriminatore (tutto)
+     
         disc_params = sum(p.numel() for p in net_d.parameters())
         
-        # Totale (Intero Generatore + Discriminatore)
-        # Nota: Il generatore include anche RRDB e Upsampling, quindi il totale > HAT + Disc
+
         total_gen = sum(p.numel() for p in net_g.parameters())
         grand_total = total_gen + disc_params
 
@@ -70,10 +67,10 @@ def main():
         print(" ╞═══════════════════════════════════════════════════════╡")
         print_row("TOTALE SISTEMA", grand_total)
         print(" └───────────────────────────────────────────────────────┘")
-        print(f"\n *Il Totale include anche le parti ESRGAN/Upsampling del Generatore non listate sopra.\n")
+       
 
     except Exception as e:
-        print(f"❌ Errore: {e}")
+        print(f" Errore: {e}")
 
 if __name__ == "__main__":
     main()
