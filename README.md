@@ -1,53 +1,49 @@
-# Pipeline di Training e Inferenza: HAT-Real (Hybrid Attention Transformer)
+# Documentazione Tecnica Dettagliata: HAT-Real (Hybrid Attention Transformer)
 
-Questo branch contiene l'implementazione del modello Hybrid Attention Transformer (HAT) applicato alla super-risoluzione di immagini astronomiche Real-World. Il codice gestisce l'intero ciclo di vita del modello, dal caricamento dei dati all'addestramento con perdite GAN, fino all'inferenza su nuove immagini.
+Questo repository implementa un framework avanzato per la Super-Risoluzione (SR) di immagini astronomiche, ottimizzato per accoppiare dati di osservatori terrestri con immagini del telescopio spaziale Hubble. Il sistema utilizza un'architettura Hybrid Attention Transformer (HAT) per superare i limiti delle tradizionali reti convoluzionali.
 
-## Architettura del Progetto
+## 1. Architettura del Modello (models/)
 
-Il branch è organizzato nelle seguenti componenti principali:
+Il cuore del sistema è progettato per gestire la complessità dei dati astronomici attraverso tre moduli principali:
 
-### 1. Core del Modello (models/)
-* **hat_arch.py**: Implementazione del trasformatore ibrido che combina self-attention ed estrazione di feature convoluzionali per catturare dettagli locali e globali.
-* **discriminator.py**: Architettura del discriminatore basata su UNet o VGG (srvgg_arch.py) per l'addestramento di tipo Generative Adversarial Network (GAN).
-* **hybridmodels.py**: Classi wrapper che integrano il generatore e il discriminatore per facilitare le operazioni di training.
+* **Generatore HAT (hat_arch.py)**: Implementa il trasformatore ibrido che combina l'efficacia delle convoluzioni nel catturare dettagli locali con la potenza della self-attention per le relazioni globali. Questa struttura permette di ricostruire strutture stellari e nebulose con alta precisione.
+* **Sistema Discriminatore (discriminator.py)**: Include diverse architetture per il training avversariale. Utilizza modelli basati su UNet o VGG (srvgg_arch.py) per analizzare l'immagine sia a livello di texture che di struttura complessiva, spingendo il generatore a produrre risultati indistinguibili dalle immagini originali di Hubble.
+* **Wrapper Ibrido (hybridmodels.py)**: Una classe di astrazione che facilita la gestione simultanea di generatore e discriminatore, ottimizzando il passaggio dei gradienti e il caricamento dei pesi durante le fasi di addestramento complesso.
 
-### 2. Gestione Dati (dataset/)
-* **astronomical_dataset.py**: Caricatore personalizzato per coppie di immagini Hubble (HR) e Osservatorio (LR). Gestisce la lettura dei file TIFF a 16-bit prodotti dalla pipeline di preprocessing e applica data augmentation (rotazioni, flip).
+## 2. Gestione Dati e Pipeline (dataset/)
 
-### 3. Logica di Addestramento (train_hat.py)
-* **Training Loop**: Gestisce l'ottimizzazione simultanea di generatore e discriminatore.
-* **Loss Functions (utils/losses_train.py e gan_losses.py)**: Integra diverse funzioni di perdita, tra cui L1 loss, Perceptual loss (basata su VGG) e Adversarial loss per migliorare il realismo fotometrico.
-* **Validazione**: Calcola metriche come PSNR e SSIM (utils/metrics.py) durante l'addestramento per monitorare la convergenza.
+La pipeline di caricamento è specificamente progettata per i formati scientifici:
 
-### 4. Inferenza e Deployment (infer.py)
-* **Script di Test**: Carica i pesi del modello pre-addestrato ed esegue la super-risoluzione su singole immagini o interi set di test, salvando i risultati per il confronto visivo.
+* **astronomical_dataset.py**: Implementa un `DataLoader` personalizzato che legge immagini TIFF a 16-bit. A differenza delle immagini standard a 8-bit, questo preserva l'alta gamma dinamica necessaria per l'astronomia.
+* **Data Augmentation**: Il dataset applica trasformazioni casuali (rotazioni di 90°, 180°, 270° e flip orizzontali/verticali) per garantire che il modello sia invariante all'orientamento degli oggetti celesti.
 
-### 5. Utility e Setup (start.py e utils/env_setup.py)
-* **Automazione**: start.py funge da entry-point per configurare l'ambiente, verificare le dipendenze e avviare il processo di training o inferenza in base ai parametri passati.
+## 3. Logica di Addestramento (train_hat.py)
+
+L'addestramento segue un approccio multi-fase per garantire stabilità e qualità:
+
+* **Funzioni di Perdita (utils/gan_losses.py, losses_train.py)**:
+    * **Pixel Loss (L1)**: Assicura che i valori cromatici e di luminosità siano accurati.
+    * **Perceptual Loss**: Utilizza una rete VGG pre-addestrata per confrontare le feature estratte, garantendo che le strutture morfologiche siano preservate.
+    * **Adversarial Loss**: Fornisce il "tocco finale" per la nitidezza, eliminando l'effetto sfocato tipico delle sole perdite MSE/L1.
+* **Metriche di Monitoraggio (utils/metrics.py)**: Vengono calcolati costantemente PSNR (Peak Signal-to-Noise Ratio) e SSIM (Structural Similarity Index) per valutare oggettivamente il miglioramento della qualità.
+
+## 4. Inferenza e Deployment (infer.py)
+
+Lo script di inferenza è ottimizzato per l'uso pratico su dati reali:
+
+* **Processing Batch**: Permette di elaborare intere cartelle di immagini provenienti da sessioni osservative terrestri.
+* **Tiling**: Se necessario, gestisce immagini di grandi dimensioni suddividendole in patch per evitare saturazione della memoria GPU, ricomponendole poi senza cuciture visibili.
+
+## 5. Setup e Automazione (start.py)
+
+Il file `start.py` automatizza la preparazione dell'ambiente:
+* Verifica la compatibilità dei driver CUDA.
+* Configura le cartelle di output per log, checkpoint e immagini campionate.
+* Installa le dipendenze mancanti tramite `env_setup.py`.
 
 ## Istruzioni per l'uso
 
-### Prerequisiti
-* Ambiente Python 3.8 o superiore.
-* GPU compatibile con CUDA (fortemente raccomandata per il training).
-* Installazione dipendenze:
-  ```bash
-  pip install -r requirements.txt
-  ```
-### Esecuzione Training
-Per avviare l'addestramento del modello HAT:
-
-```Bash
-python train_hat.py
-```
-### Esecuzione Inferenza
-Per applicare il modello a nuove immagini:
-
-```Bash
-python infer.py --input path/to/images --model_path path/to/checkpoint.pth
-```
-
-### Note Tecniche
-Dataset: Il modello si aspetta dati normalizzati e suddivisi tramite gli script presenti nel branch di preprocessing (Dataset_step4 e prepare_data).
-
-Configurazione: I parametri relativi a learning rate, batch size e pesi delle loss sono definiti all'interno di train_hat.py e start.py.
+1.  **Requisiti**: Python 3.8+, PyTorch 2.0+, GPU con almeno 8GB di VRAM.
+2.  **Preparazione**: Assicurarsi che i dati siano stati processati dal branch `misc` (registrazione e normalizzazione).
+3.  **Training**: Eseguire `python train_hat.py` per avviare il ciclo di addestramento.
+4.  **Inferenza**: Usare `python infer.py --input <cartella_input> --model_path <checkpoint.pth>` per generare i risultati.
