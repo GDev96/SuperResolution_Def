@@ -14,7 +14,6 @@ from tqdm import tqdm
 from PIL import Image
 import warnings
 
-
 warnings.filterwarnings("ignore", category=UserWarning, module="torchvision.models._utils")
 warnings.filterwarnings("ignore", message="Grad strides do not match bucket view strides")
 warnings.filterwarnings("ignore", message="torch.meshgrid: in an upcoming release")
@@ -335,5 +334,6 @@ def train_worker():
 if __name__ == "__main__":
 
     train_worker()
+
 
 
