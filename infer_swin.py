@@ -21,9 +21,9 @@ if str(PROJECT_ROOT) not in sys.path:
 
 
 try:
-    from models.architecture import SwinIR
-    from dataset.astronomical_dataset import AstronomicalDataset
-    from utils.metrics import TrainMetrics
+    from models.architecture_swin import SwinIR
+    from dataset.astronomical_dataset_swin import AstronomicalDataset
+    from utils.metrics_swin import TrainMetrics
 except ImportError as e:
     sys.exit(f"Errore Import: {e}. Verifica la struttura delle cartelle.")
 

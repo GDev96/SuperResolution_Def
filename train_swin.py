@@ -25,11 +25,11 @@ ROOT_DATA_DIR = PROJECT_ROOT / "data"
 sys.path.insert(0, str(PROJECT_ROOT))
 
 try:
-    from models.architecture import SwinIR 
-    from models.discriminator import UNetDiscriminatorSN
-    from dataset.astronomical_dataset import AstronomicalDataset
-    from utils.gan_losses import CombinedGANLoss, DiscriminatorLoss
-    from utils.metrics import TrainMetrics
+    from models.architecture_swin import SwinIR 
+    from models.discriminator_swin import UNetDiscriminatorSN
+    from dataset.astronomical_dataset_swin import AstronomicalDataset
+    from utils.gan_losses_swin import CombinedGANLoss, DiscriminatorLoss
+    from utils.metrics_swin import TrainMetrics
 except ImportError as e:
     sys.exit(f"Errore Import: {e}. Verifica la struttura delle cartelle.")
 
